@@ -13,7 +13,7 @@ The card application depends on user in order to have a card created for a speci
 | Kotlin | 1.3.72      |
 | Java   | 11.0.8      |
 
-### K8s environment
+### K8s environment - WIP
 You can choose any tool in order to have a local kubernetes cluster running. To this project we're going to use [Kind](https://kind.sigs.k8s.io/docs/user/quick-start/) version 0.9.0. Kind was chosen mainly because its environment that leverages docker container features.
 Also, we're using [Kompose](https://github.com/kubernetes/kompose) once we already had a docker-compose structure defined in the project.
 
