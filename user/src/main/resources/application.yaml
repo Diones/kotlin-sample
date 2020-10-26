@@ -1,0 +1,115 @@
+server:
+  port: ${SERVER_PORT:8090}
+  servlet:
+    context-path: /kotlin-sample-user
+  undertow:
+    threads:
+      io: ${UNDERTOW_IO-THREADS:10}
+      worker: ${UNDERTOW_WORKER-THREADS:100}
+logging:
+  level:
+    root: ${ROOT_LOG_LEVEL:info}
+    org:
+      apache:
+        http:
+          wire: ${HTTP_LOG_LEVEL:info}
+  pattern:
+    console: "[%thread][%highlight(%-5level)][%cyan(%d{yyyy-MM-dd HH:mm:ss.SSS})][%yellow(%X{requestId})][%magenta(%logger{40})] - %msg%n"
+management:
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      env: ${spring.profiles.active}
+      instanceId: ${random.uuid}
+  endpoints:
+    web:
+      exposure:
+        include: "info,health,prometheus,caches"
+  health:
+    rabbit:
+      enabled: ${RABBITMQ_HEALTHCHECK_ENABLED:true}
+spring:
+  application:
+    name: ${APPLICATION_NAME:kotlin-sample-user}
+  data:
+    mongodb:
+      host: ${MONGODB_HOST:localhost}
+      port: ${MONGODB_PORT:27017}
+      database: ${MONGODB_DATABASE:kotlin-sample-user}
+      username: ${MONGODB_USERNAME:kotlin-sample}
+      password: ${MONGODB_PASSWORD:kotlin-sample}
+      authentication-database: admin
+  main:
+    allow-bean-definition-overriding: true
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    template:
+      exchange: kotlin-sample-user
+    listener:
+      simple:
+        retry:
+          enabled: ${RABBITMQ_RETRY_ENABLED:true}
+          initial-interval: ${RABBITMQ_RETRY_INTERVAL:1000}
+          max-attempts: ${RABBITMQ_RETRY_ATTEMPTS:3}
+          max-interval: ${RABBITMQ_RETRY_MAX_INTERNAL:3000}
+        concurrency: ${RABBITMQ_CONCURRENCY:10}
+        max-concurrency: ${RABBITMQ_MAX_CONCURRENCY:${server.undertow.threads.worker}}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVER:localhost:9092}
+    consumer:
+      group-id: kotlin-sample-user
+  profiles:
+    active: ${SPRING_ACTIVE_PROFILE:dev}
+  redis:
+    host: ${REDIS_HOST:localhost}
+    jedis:
+      pool:
+        max-active: ${REDIS_MAX-ACTIVE:100}
+        max-idle: ${REDIS_MAX-IDLE:100}
+        max-wait: ${REDIS_MAX-WAIT:1000}
+        min-idle: ${REDIS_MIN-IDLE:5}
+    timeout: ${REDIS_TIMEOUT:1000}
+
+
+caffeine:
+  maximumSize:
+    default: ${CAFFEINE_DEFAULT_MAX_SIZE:100}
+  ttl:
+    default: ${CAFFEINE_DEFAULT_TTL:60} # in minutes
+
+redis:
+  ttl:
+    default: ${REDIS_DEFAULT_TTL:60} # in minutes
+
+interceptor:
+  mdc-interceptor:
+    enabled: ${MDC_INTERCEPTOR:true} # Mapped Diagnostic Context (MDC)
+
+opentracing:
+  jaeger:
+    udp-sender:
+      host: ${JAEGER_HOST:localhost}
+      port: 6831
+    enabled: ${JAEGER_ENABLED:true}
+    log-spans: ${OPENTRACING_LOG_SPANS:true}
+    probabilistic-sampler:
+      sampling-rate: ${JAEGER_SAMPLER:1} # 1 = 100%, 0.5 = 50%, etc.
+  spring:
+    cloud:
+      jdbc:
+        enabled: ${JAEGER_JDBC_ENABLED:false}
+      redis:
+        enabled: ${JAEGER_REDIS_ENABLED:false}
+    web:
+      skip-pattern: ${JAEGER_SKIP_PATTERN:/actuator.*}
+
+rabbit:
+  queues:
+    user: kotlin-sample-user-queue
+
+kafka:
+  topics:
+    user: ${KAFKA_CARD_TOPIC:kotlin-sample-user-topic}

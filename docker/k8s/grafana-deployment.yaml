@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -o ./k8s
+    kompose.version: 1.21.0 (992df58d8)
+  labels:
+    io.kompose.service: grafana
+  name: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: grafana
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -o ./k8s
+        kompose.version: 1.21.0 (992df58d8)
+      labels:
+        io.kompose.network/net: "true"
+        io.kompose.service: grafana
+    spec:
+      containers:
+      - env:
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: admin
+        - name: GF_USERS_ALLOW_SIGN_UP
+          value: "true"
+        image: grafana/grafana:7.1.5
+        imagePullPolicy: ""
+        name: grafana
+        ports:
+        - containerPort: 3000
+        resources: {}
+        volumeMounts:
+        - mountPath: /etc/grafana/provisioning/datasources/datasource.yml
+          name: grafana-claim0
+        - mountPath: /etc/grafana/provisioning/dashboards/dashboard.yml
+          name: grafana-claim1
+        - mountPath: /etc/grafana/provisioning/dashboards/spring-boot.json
+          name: grafana-claim2
+        - mountPath: /etc/grafana/provisioning/dashboards/rabbitmq-overview_rev6.json
+          name: grafana-claim3
+        - mountPath: /etc/grafana/provisioning/dashboards/microservice-metrics.json
+          name: grafana-claim4
+      restartPolicy: Always
+      serviceAccountName: ""
+      volumes:
+      - name: grafana-claim0
+        persistentVolumeClaim:
+          claimName: grafana-claim0
+      - name: grafana-claim1
+        persistentVolumeClaim:
+          claimName: grafana-claim1
+      - name: grafana-claim2
+        persistentVolumeClaim:
+          claimName: grafana-claim2
+      - name: grafana-claim3
+        persistentVolumeClaim:
+          claimName: grafana-claim3
+      - name: grafana-claim4
+        persistentVolumeClaim:
+          claimName: grafana-claim4

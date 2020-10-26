@@ -1,0 +1,225 @@
+version: '3'
+volumes:
+  portainer_data:
+services:
+  portainer:
+    restart: unless-stopped
+    image: portainer/portainer-ce:2.0.0
+    container_name: portainer
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # option can be used in Linux environments only
+      #- \\.\pipe\docker_engine:\\.\pipe\docker_engine # option can be used in Windows 1803+ Container environments only
+      - portainer_data:/data
+    ports:
+      - 8000:8000
+      - 9000:9000
+  elasticsearch:
+    restart: unless-stopped
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.9.1
+    container_name: elasticsearch
+    environment:
+      - "discovery.type=single-node"
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "xpack.security.enabled=false"
+    ports:
+      - 9200:9200
+      - 9300:9300
+    networks:
+      - net
+  kibana:
+    restart: unless-stopped
+    image: docker.elastic.co/kibana/kibana:7.9.1
+    container_name: kibana
+    ports:
+      - 5601:5601
+    depends_on:
+      - elasticsearch
+    networks:
+      - net
+  jaeger:
+    restart: unless-stopped
+    image: jaegertracing/all-in-one:1.19.2
+    container_name: jaeger
+    environment:
+      - "SPAN_STORAGE_TYPE=elasticsearch"
+      - "ES_SERVER_URLS=http://elasticsearch:9200"
+      - "ES_TAGS_AS_FIELDS_ALL=true"
+    ports:
+      - "6831:6831/udp"
+      - "16686:16686"
+    depends_on:
+      - elasticsearch
+    networks:
+      - net
+  prometheus:
+    restart: unless-stopped
+    image: prom/prometheus:v2.20.1
+    container_name: prometheus
+    volumes:
+      - ./prometheus:/etc/prometheus
+    environment:
+      - "DOCKER_HOST=172.17.0.1"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    networks:
+      - net
+  grafana:
+    restart: unless-stopped
+    image: grafana/grafana:7.1.5
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=true
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+    networks:
+      - net
+  rabbitmq:
+    restart: unless-stopped
+    image: 'rabbitmq:3.8.8-management'
+    container_name: rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    networks:
+      - net
+    ports:
+      - '15672:15672'
+      - '5672:5672'
+      - '15692:15692'
+  redis:
+    restart: unless-stopped
+    image: 'redis:6.0.8'
+    container_name: redis
+    networks:
+      - net
+    ports:
+      - '6379:6379'
+  zookeeper:
+    restart: unless-stopped
+    image: 'confluentinc/cp-zookeeper:5.3.4'
+    container_name: zookeeper
+    networks:
+      - net
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - 2181:2181
+  kafka:
+    restart: unless-stopped
+    image: 'confluentinc/cp-kafka:5.3.4'
+    container_name: kafka
+    networks:
+      - net
+    depends_on:
+      - zookeeper
+    ports:
+      - 9092:9092
+      - 29092:29092
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+  kafdrop:
+    restart: unless-stopped
+    image: obsidiandynamics/kafdrop:3.27.0
+    container_name: kafdrop
+    ports:
+      - "9050:9050"
+    environment:
+      KAFKA_BROKERCONNECT: "kafka:29092"
+      JVM_OPTS: "-Xms32M -Xmx64M"
+      SERVER_SERVLET_CONTEXTPATH: "/"
+      SERVER_PORT: 9050
+    depends_on:
+      - kafka
+    networks:
+      - net
+  mongo:
+    restart: unless-stopped
+    image: mongo:4.4.1
+    container_name: mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: kotlin-sample
+      MONGO_INITDB_ROOT_PASSWORD: kotlin-sample
+    ports:
+      - 27017:27017
+    networks:
+      - net
+  mongo-express:
+    restart: unless-stopped
+    image: mongo-express
+    container_name: mongo-express
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: kotlin-sample
+      ME_CONFIG_MONGODB_ADMINPASSWORD: kotlin-sample
+    depends_on:
+      - mongo
+    networks:
+      - net
+  kotlin-sample-card:
+    restart: unless-stopped
+    container_name: kotlin-sample-card
+    image: diones/kotlin-sample-card:latest
+    build:
+      context: ../card
+      args:
+        - JAR_FILE=build/libs/*.jar
+    environment:
+      - MONGODB_HOST=mongo
+      - RABBITMQ_HOST=rabbitmq
+      - JAEGER_HOST=jaeger
+      - KAFKA_HOST=kafka
+      - REDIS_HOST=redis
+    ports:
+      - 8190:8090
+    depends_on:
+      - mongo
+      - kafka
+      - rabbitmq
+      - redis
+    networks:
+      - net
+  kotlin-sample-user:
+    restart: unless-stopped
+    container_name: kotlin-sample-user
+    image: diones/kotlin-sample-user:latest
+    build:
+      context: ../user
+      args:
+        - JAR_FILE=build/libs/*.jar
+    environment:
+      - MONGODB_HOST=mongo
+      - RABBITMQ_HOST=rabbitmq
+      - JAEGER_HOST=jaeger
+      - KAFKA_HOST=kafka
+      - REDIS_HOST=redis
+    ports:
+      - 8191:8091
+    depends_on:
+      - mongo
+      - kafka
+      - rabbitmq
+      - redis
+    networks:
+      - net
+networks:
+  net:
+    driver: bridge

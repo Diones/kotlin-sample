@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -o ./k8s
+    kompose.version: 1.21.0 (992df58d8)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: kotlin-sample-user
+  name: kotlin-sample-user
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: kotlin-sample-user
+  strategy: {}
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -o ./k8s
+        kompose.version: 1.21.0 (992df58d8)
+      creationTimestamp: null
+      labels:
+        io.kompose.network/net: "true"
+        io.kompose.service: kotlin-sample-user
+    spec:
+      containers:
+      - env:
+        - name: JAEGER_HOST
+          value: jaeger
+        - name: KAFKA_HOST
+          value: kafka
+        - name: MONGODB_HOST
+          value: mongo
+        - name: RABBITMQ_HOST
+          value: rabbitmq
+        - name: REDIS_HOST
+          value: redis
+        image: diones/kotlin-sample-user:latest
+        imagePullPolicy: ""
+        name: kotlin-sample-user
+        ports:
+        - containerPort: 8091
+        resources: {}
+      restartPolicy: Always
+      serviceAccountName: ""
+      volumes: null
+status: {}
